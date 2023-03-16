@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-16 15:45:41
 LastEditors: 莫邪
-LastEditTime: 2023-03-16 17:56:03
+LastEditTime: 2023-03-17 01:30:22
 '''
 # -*- coding: utf-8 -*-
 import win32api
@@ -12,13 +12,8 @@ import win32con
 import win32gui
 import time
 
-def GetSorftHindle(title, func = None):
+def GetSorftHindle(title):
   handle = win32gui.FindWindow(None, title)
-  if func:
-    if handle:
-      func(5, 'get sorftware handle: %d'%(handle))
-    else:
-      func(3, 'get sorftware handle: %d'%(handle))
   return handle
 
 
@@ -58,6 +53,8 @@ class StepNodeList():
   current_time = None
   def push_back(self, key, func, *args):
     now = time.time()
+    if not self.current_time:
+      self.current_time = now
     if not self.step:
       self.step = StepNode(key, now - self.current_time, func, *args)
       return

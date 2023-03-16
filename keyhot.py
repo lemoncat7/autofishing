@@ -4,13 +4,14 @@ version:
 Author: 莫邪
 Date: 2022-11-30 13:46:36
 LastEditors: 莫邪
-LastEditTime: 2022-12-07 09:24:43
+LastEditTime: 2023-03-17 02:07:41
 '''
 # -*- coding: utf-8 -*-
 
 import pynput.mouse as mouse
 import pynput.keyboard as keyboard
-import sys,os, time
+import sys,os, time, queue
+import threading
 
 class EventNode():
   next_ = None
@@ -88,19 +89,36 @@ class GlobalListener():
   mouse_click = EventList()
   mouse_move = EventList()
   mouse_scroll = EventList()
+  event_queue = queue.Queue()
+
+  def consumer(self):
+    while True:
+      event = self.event_queue.get(timeout=0.1)
+      if event[0] == "key_press":
+        self.key_press.exec(event[1])
+      elif event[0] == "key_release":
+        self.key_press.exec(event[1])
+
+  def start_listener(self):
+    self.listener_thread = threading.Thread(target=self.consumer)
+    self.listener_thread.daemon = True
+    self.listener_thread.start()
+
   def _KeyboardPress(self, key):
     try:
       # print(key)
-      self.key_press.exec(key)
+      # self.key_press.exec(key)
+      self.event_queue.put(["key_press", key])
     except Exception as e:
-      print(e)
+      raise(e)
     pass
 
   def _KeyboardRelease(self, key):
     try:
-      self.key_release.exec(key)
+      # self.key_release.exec(key)
+      self.event_queue.put(["key_release", key])
     except Exception as e:
-      print(e)
+      raise(e)
     pass
 
   def _MouseClick(self, x, y , button, pressed):
@@ -108,7 +126,7 @@ class GlobalListener():
       # print(x, y, button, pressed)
       self.mouse_click.exec(*[x, y, button, pressed])
     except Exception as e:
-      print(e)
+      raise(e)
     pass
 
   def _MouseMove(self, x, y):
@@ -116,7 +134,7 @@ class GlobalListener():
       # print(x, y)
       self.mouse_move.exec(x, y)
     except Exception as e:
-      print(e)
+      raise(e)
     pass
 
   def _MouseScroll(self, x, y ,dx, dy):
@@ -124,7 +142,7 @@ class GlobalListener():
       # print(x, y, dx, dy)
       self.mouse_scroll.exec(x, y, dx, dy)
     except Exception as e:
-      print(e)
+      raise(e)
     pass
 
   def Listen(self):
@@ -134,4 +152,4 @@ class GlobalListener():
         m_listener.join()
         k_listener.join()
     except Exception as e:
-      print(e)
+      raise(e)

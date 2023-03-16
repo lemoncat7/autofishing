@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-16 10:58:33
 LastEditors: 莫邪
-LastEditTime: 2023-03-16 18:43:38
+LastEditTime: 2023-03-17 01:38:38
 '''
 # -*- coding: utf-8 -*-
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -12,14 +12,43 @@ from datetime import datetime
 from win_api import *
 import keyhot
 
+class KeyHot(QtCore.QThread):
+  status = False
+  lisenter = keyhot.GlobalListener()
+  log = QtCore.pyqtSignal(int, str)
+
+  def __set_status__(self, st):
+    self.status = st
+
+  def get_listener(self):
+    return self.lisenter
+
+  def run(self):
+    try:
+      if not self.status:
+        self.status = not self.status
+        self.lisenter.Listen()
+        self.status = not self.status
+    except Exception as e:
+      self.status = not self.status
+      if self.log:
+        self.log.emit(2, str(e))
+  
+  
+
+
 class MainWindow(QtWidgets.QWidget):
   __log = 5
   __log_type = {5:'debug', '4':'info', 3:'warning', 2:'error', 1:'fatal'}
-  step_list = StepNodeList
+  step_list = StepNodeList()
+  log_send = QtCore.pyqtSignal(int, str)
+  hot_key = KeyHot()
   def __init__(self, parent = None):
     super(MainWindow, self).__init__(parent)
     self.__ui__()
     self.__conn__()
+    self.__register_listener__()
+
   def __get_time(self):
     now = datetime.now()
     return now.strftime("%m/%d %I:%M:%S")
@@ -68,25 +97,31 @@ class MainWindow(QtWidgets.QWidget):
     layout.addLayout(b_layout)
     self.setLayout(layout)
 
+  def __write_log(self, text):
+    try:
+      self.findChild(QtWidgets.QTextEdit, 'log').append(text)
+    except Exception as e:
+      print(e)
+
   def __debug(self, log_level, text=''):
     if log_level >= 5:
-      self.findChild(QtWidgets.QTextEdit, 'log').append('%s <font color="orange">DEBUG</font> %s'%(self.__get_time(),text))
+      self.__write_log('%s <font color="orange">DEBUG</font> %s'%(self.__get_time(),text))
   
   def __info(self, log_level, text=''):
     if log_level >= 4:
-      self.findChild(QtWidgets.QTextEdit, 'log').append('%s <font color="blue">INFO</font> %s'%(self.__get_time(),text))
+      self.__write_log('%s <font color="blue">INFO</font> %s'%(self.__get_time(),text))
   
   def __warning(self, log_level, text=''):
-    if log_level >= 3:# 创建文本格式对象
-      self.findChild(QtWidgets.QTextEdit, 'log').append('%s <font color="yellow">WARNING</font> <b>%s</b>'%(self.__get_time(),text))
+    if log_level >= 3:
+      self.__write_log('%s <font color="yellow">WARNING</font> <b>%s</b>'%(self.__get_time(),text))
   
   def __error(self, log_level, text=''):
     if log_level >= 2:
-      self.findChild(QtWidgets.QTextEdit, 'log').append('%s <font color="red">ERROR</font> <b>%s</b>'%(self.__get_time(),text))
+      self.__write_log('%s <font color="red">ERROR</font> <b>%s</b>'%(self.__get_time(),text))
   
   def __fatal(self, log_level, text=''):
     if log_level >= 1:
-      self.findChild(QtWidgets.QTextEdit, 'log').append('%s FATAL %s'%(self.__get_time(),text))
+      self.__write_log('%s FATAL %s'%(self.__get_time(),text))
 
   def Log(self, type, text):
     if type == 5:
@@ -99,7 +134,18 @@ class MainWindow(QtWidgets.QWidget):
       self.__error(self.__log, text)
     elif type == 1:
       self.__fatal(self.__log, text)
-    
+      
+  def mouse_move_handler(self, x, y):
+    self.log_send.emit(5, "Mouse move event: %d %d"%(x, y))
+    self.step_list.push_back('mouse move', keyhot.MousePosition, x, y)
+
+  def keyboard_event_handler(self, event):
+      self.Log(5, "event: %s"%event)
+
+  def __register_listener__(self):
+    self.hot_key.lisenter.mouse_move.push_back(self.mouse_move_handler)
+    self.hot_key.start()
+
   def __add_item__(self, text):
     # 添加列表项
     item = QtGui.QStandardItem(text)
@@ -111,19 +157,17 @@ class MainWindow(QtWidgets.QWidget):
   def __conn__(self):
     self.findChild(QtWidgets.QPushButton, 'simulation').clicked.connect(self.add_simulation_path)
     self.findChild(QtWidgets.QPushButton, 'exit').clicked.connect(exit)
-  
-  def mouse_move_handler(self, x, y):
-    self.Log(5, "Mouse move event: %d %d"%(x, y))
-    self.step_list.push_back('mouse move', keyhot.MousePosition, x, y)
-
-  def keyboard_event_handler(self, event):
-      self.Log(5, "event: %s"%event)
+    self.hot_key.log.connect(self.__write_log)
+    self.log_send.connect(self.Log)
 
   def add_simulation_path(self):
     self.Log(4, 'start to simulation path')
-    hwnd = GetSorftHindle('记事本', self.Log)
+    hwnd = GetSorftHindle('记事本')
     if not hwnd:
       self.Log(2, 'sorftware handle get error')
+      return
+    else:
+      self.Log(4, 'sorftware handle get process: %d'%hwnd)
     self.__add_item__('path')
 
 
