@@ -27,6 +27,7 @@ class MyApp:
   path_map = {}
   handle = None
   model = None
+  xy_status = False
   def __init__(self):
     self.root = tk.Tk()
     # 设置退出事件的回调函数
@@ -43,7 +44,8 @@ class MyApp:
     l1.grid(row=0, column=0, sticky='w')
     self.title = tk.Label(self.root, text='窗口 ', width=10)
     self.title.grid(row=0, column=1, sticky='e')
-    self.xy = tk.Label(self.root, text='(x, y)', width=10)
+    self.xy = tk.Label(self.root, text='点击获取坐标', width=10)
+    self.xy.bind("<Button-1>", self.__xy_change)
     self.xy.grid(row=0, column=2, sticky='e')
     self.log = tk.Text(self.root)
     self.log.grid(row=1, column=0, columnspan=3)
@@ -88,6 +90,13 @@ class MyApp:
     # self.__init_listbox()
     self.flush_listBox()
     pass
+
+  def __xy_change(self, event = None):
+    self.xy_status = not self.xy_status
+    if not self.xy_status:
+      self.xy.config(text='点击获取坐标')
+    else:
+      self.Log('获取坐标时，拖动窗口会出现卡顿')
 
   def flush_listBox(self):
     self.__save_path_map()
@@ -202,6 +211,7 @@ class MyApp:
   def __setting(self,event):
     '''设置功能（打开配置文件）'''
     conf_path = self.get_file('config.ini')
+    self.Log('log日志等级(NOWRITE, FATAL, ERROR, WARNING, INFO, DEBUG)\nprocess 需要聚焦的窗口标题')
     self.Log('保存文件后，请右击左下角 S/F 以刷新配置')
     os.system("start notepad.exe {}".format(conf_path))
 
@@ -212,7 +222,7 @@ class MyApp:
       conf_path = self.get_file('config.ini')
       if not os.path.exists(conf_path):
         with open(conf_path, 'w+', encoding='utf8') as f:
-          f.write('''[settings]\nlog=INFO\nprocess=\nmodel=''')
+          f.write('''[settings]\nlog=INFO\nprocess=\n''')
       # 创建 ConfigParser 对象
       config = configparser.ConfigParser()
       # 读取配置文件
@@ -220,7 +230,7 @@ class MyApp:
       self.log_level = self.log_map[config.get('settings','log')]
       self.Log("read config log level: %s"%self.log_level.name, 5)
       self.process = config.get('settings','process')
-      self.model = config.get('settings','model')
+      # self.model = config.get('settings','model')
       self.Log("read config process: %s" % self.process, 5)
       # self.__save_path_map()
       self.__init()
@@ -236,13 +246,14 @@ class MyApp:
     with open(path, 'w+', encoding='utf-8') as f:
       for index in range(self.listbox.size()):
         f.write('%s,%s,%s\n'%(self.listbox.get(index), \
-                            self.listbox.select_includes(index), \
+                              self.listbox.select_includes(index), \
                               self.path_map[self.listbox.get(index)]))
 
   def simu_click(self):
     '''路径模拟 生成路径配置文件'''
     # thread = threading.Thread(target=self.__simulate)
     # thread.start()
+    self.Log('保存文件后，请右击左下角 S/F 以刷新配置')
     pass
 
   def Lisenter(self, path = None):
@@ -264,9 +275,9 @@ class MyApp:
       self.Log('simulate %s'%e, 3)
 
   def __listbox_edit(self, event):
-    path = self.get_file('list_list')
-    self.Log('保存文件后，请右击左下角 S/F 以刷新配置')
-    os.system("start notepad.exe {}".format(path))
+    # path = self.get_file('list_list')
+    # self.Log('保存文件后，请右击左下角 S/F 以刷新配置')
+    # os.system("start notepad.exe {}".format(path))
     pass
   
   def on_closing(self):

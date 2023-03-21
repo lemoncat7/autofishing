@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-19 01:05:36
 LastEditors: 莫邪
-LastEditTime: 2023-03-21 00:47:47
+LastEditTime: 2023-03-21 10:46:44
 '''
 # -*- coding: utf-8 -*-
 from auto_app import MyApp
@@ -46,6 +46,21 @@ class AutoFish(MyApp):
     return itime
 
   def simu_click(self):
+    self.Log('''参数格式: 类型, 时间间隔, 输入参数, 次数
+类型
+  press/release  按键按下/释放
+  move           鼠标移动
+  rotation       旋转视角
+  up/down        鼠标按下/释放
+时间间隔 ms
+输入参数
+  (a-zA-Z0-9)       字母
+  left/right     鼠标左键/右键
+  x, y           坐标 x, y
+次数''')
+      
+    '''\n(press|release)(按键按下|释放)\
+             /move(鼠标移动)/rotation(旋转视角)/(up|down)(鼠标按下|释放)\n time\n word/x, y/left/right\n times')'''
     os.startfile(self.dir)
     return super().simu_click()
     
@@ -106,6 +121,16 @@ class AutoFish(MyApp):
     #   self.script_queue.put(['release', self.__interval_time(), str(key)])
     pass
 
+  def __mouse_in_win(self,x, y):
+    self.root.update()
+    cx = self.root.winfo_x()
+    cy = self.root.winfo_y()
+    width = self.root.winfo_width()
+    height = self.root.winfo_height()
+    print(x, y)
+    print(cx, cy, width, height, x > cx and x < cx + width and y > cy and y < cy + 70)
+    return x > cx and x < cx + width and y > cy and y < cy + 70
+
   # 定义鼠标事件回调函数
   def __on_move(self, x, y):
     # print('鼠标移动到 ({0}, {1})'.format(x, y))
@@ -117,8 +142,10 @@ class AutoFish(MyApp):
     # print(x, y)
     # print(cx, cy, width, height)
     # if (y > cy + height or y < cy) and (x < cx or x > cx + width):
-    self.xy.config(text='(%d, %d)'%(x, y))
-    self.title.config(text='窗口 %s'%(win32.get_current_title()))
+    
+    if self.xy_status:
+      self.xy.config(text='(%d, %d)'%(x, y))
+      self.title.config(text='窗口 %s'%(win32.get_current_title()))
     pass
 
   def __on_click(self, x, y, button, pressed):
