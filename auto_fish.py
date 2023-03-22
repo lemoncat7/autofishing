@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-19 01:05:36
 LastEditors: 莫邪
-LastEditTime: 2023-03-22 10:01:12
+LastEditTime: 2023-03-22 10:40:07
 '''
 # -*- coding: utf-8 -*-
 from auto_app import MyApp
@@ -23,6 +23,7 @@ ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
 
 class AutoFish(MyApp):
   lisenter_status = False
+  run_status = False
   # 创建pynput.keyboard.Controller和pynput.mouse.Controller对象 虚拟控制对象
   kb = keyboard.Controller()
   mc = mouse.Controller()
@@ -49,7 +50,10 @@ class AutoFish(MyApp):
     return itime
 
   def simu_click(self):
-    self.Log('''参数格式: 类型, 时间间隔, 输入参数, 次数
+    self.Log('''参数格式: 
+keyboard, 300, w, 10
+类型, 时间间隔, 输入参数, 次数
+
 类型
   keyboard       键盘
   move           鼠标移动
@@ -115,8 +119,9 @@ class AutoFish(MyApp):
     # else:
     #     # 如果按键不是单个字符，则将Key对象转换为对应的键码
     #     key_value = keyboard.Key[key.name]
-    # if (key == keyboard.Key.esc):
-    #   self.lisenter_status = False
+    if (key == keyboard.Key.esc and self.run_status):
+      self.Log('等待线程停止...',5)
+      self.run_status = False
     # else:
     #   self.script_queue.put(['release', self.__interval_time(), str(key)])
     pass
@@ -217,7 +222,7 @@ class AutoFish(MyApp):
       for l in list:
         if l == '':
           list.remove(l)
-      while(times > 0 or times == -1):
+      while((times > 0 or times == -1) and self.run_status):
         # 移动
         if (list[0] == 'move'):
           if times == -1:
@@ -314,6 +319,8 @@ class AutoFish(MyApp):
   def __run_threading(self, selections):
     try:
       time.sleep(0.5)
+      self.run_status = True
+      self.Log('按 ESC 键可退出运行脚本')
       ok, h = win32.set_sorftware_foreground(self.process)
       for selection in selections:
         path = self.path_map[self.listbox.get(selection)]
@@ -321,7 +328,12 @@ class AutoFish(MyApp):
         self.Log('run item %s, path %s' %(self.listbox.get(selection), path), 6)
         lines = open(os.path.join(self.dir, path), 'r', encoding='utf8').readlines()
         for line in lines:
+          if not self.run_status:
+            self.Log('已终止运行脚本',5)
+            break
           self.Exec(line)
+        if not self.run_status:
+          break
       self.Log('script 运行结束',5)
     except Exception as e:
       self.Log('run threading %s'%e, 3)
