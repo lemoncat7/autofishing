@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-19 01:05:36
 LastEditors: 莫邪
-LastEditTime: 2023-03-21 10:46:44
+LastEditTime: 2023-03-22 10:01:12
 '''
 # -*- coding: utf-8 -*-
 from auto_app import MyApp
@@ -16,6 +16,9 @@ import traceback
 import win32
 import threading
 import pydirectinput
+import ctypes
+PROCESS_PER_MONITOR_DPI_AWARE = 2
+ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
 
 
 class AutoFish(MyApp):
@@ -48,19 +51,16 @@ class AutoFish(MyApp):
   def simu_click(self):
     self.Log('''参数格式: 类型, 时间间隔, 输入参数, 次数
 类型
-  press/release  按键按下/释放
+  keyboard       键盘
   move           鼠标移动
   rotation       旋转视角
-  up/down        鼠标按下/释放
+  click          鼠标
 时间间隔 ms
 输入参数
-  (a-zA-Z0-9)       字母
+  [a-zA-Z0-9]    字母
   left/right     鼠标左键/右键
   x, y           坐标 x, y
 次数''')
-      
-    '''\n(press|release)(按键按下|释放)\
-             /move(鼠标移动)/rotation(旋转视角)/(up|down)(鼠标按下|释放)\n time\n word/x, y/left/right\n times')'''
     os.startfile(self.dir)
     return super().simu_click()
     
@@ -145,10 +145,17 @@ class AutoFish(MyApp):
     
     if self.xy_status:
       self.xy.config(text='(%d, %d)'%(x, y))
-      self.title.config(text='窗口 %s'%(win32.get_current_title()))
+      # self.title.config(text='窗口 %s'%(win32.get_current_title()))
+      # self.Log('获取当前窗口 %s'%(win32.get_current_title()))
     pass
 
   def __on_click(self, x, y, button, pressed):
+    if pressed :
+      self.xy_status = False
+    elif not pressed:
+      self.xy_status = True
+      if self.title_flag:
+        self.Log('获取当前窗口 %s'%(win32.get_current_title()))
     # if pressed:
     #   # print('鼠标 {0} 按下在 ({1}, {2})'.format(button, x, y))
     #   self.script_queue.put(['down', self.__interval_time(), button])
@@ -213,12 +220,12 @@ class AutoFish(MyApp):
       while(times > 0 or times == -1):
         # 移动
         if (list[0] == 'move'):
-            if times == -1:
-              if len(list) >= 5:
-                times = int(list[4])
-              else:
-                  times = 1
-            self.mc.position = (list[2],list[3])
+          if times == -1:
+            if len(list) >= 5:
+              times = int(list[4])
+            else:
+                times = 1
+          self.mc.position = (list[2],list[3])
           # self.mc.move(int(list[2]),int(list[3]))
         # 旋转
         elif (list[0] == 'rotation'):
@@ -230,7 +237,7 @@ class AutoFish(MyApp):
           pydirectinput.moveRel(xOffset=int(list[2]),yOffset=int(list[3]),duration=0.4,relative=True)
           # self.game_cxy = (list[2],list[3])
         # 按键
-        elif (list[0] == 'press'):
+        elif (list[0] == 'press' or list[0] == 'keyboard'):
           if times == -1:
             if len(list) >= 4:
               times = int(list[3])
@@ -248,6 +255,8 @@ class AutoFish(MyApp):
             # 否则，将字符串作为键名直接传递
             key = list[2].strip()
           self.kb.press(key)
+          if list[0] == 'keyboard' and times == 1:
+            self.kb.release(key)
         # 释放按键
         elif (list[0] == 'release'):
           if times == -1:
@@ -280,7 +289,7 @@ class AutoFish(MyApp):
           elif 'right' in list[2]:
             self.mc.release(mouse.Button.right)
         # 抬起鼠标
-        elif (list[0] == 'down'):
+        elif (list[0] == 'down' or list[0] == 'click'):
           if times == -1:
             if len(list) >= 4:
               times = int(list[3])
@@ -288,9 +297,13 @@ class AutoFish(MyApp):
                 times = 1
           if 'left' in list[2]:
             self.mc.press(mouse.Button.left)
+            if list[0] == 'click' and times == 1:
+              self.mc.release(mouse.Button.left)
             # pydirectinput.click()
           elif 'right' in list[2]:
             self.mc.press(mouse.Button.right)
+            if list[0] == 'click' and times == 1:
+              self.mc.release(mouse.Button.right)
         time.sleep(float(list[1]) * 0.001)
         self.Log('times %d , type %s'%(times, list[0]), 6)
         times = times - 1 if times > 0 else times

@@ -27,7 +27,8 @@ class MyApp:
   path_map = {}
   handle = None
   model = None
-  xy_status = False
+  xy_status = True
+  title_flag = False
   def __init__(self):
     self.root = tk.Tk()
     # 设置退出事件的回调函数
@@ -42,10 +43,11 @@ class MyApp:
     '''布局'''
     l1 = tk.Label(self.root, text='日志')
     l1.grid(row=0, column=0, sticky='w')
-    self.title = tk.Label(self.root, text='窗口 ', width=10)
+    self.title = tk.Label(self.root, text='Moye', width=10)
+    self.title.bind('<Button-1>', self.__get_title)
     self.title.grid(row=0, column=1, sticky='e')
-    self.xy = tk.Label(self.root, text='点击获取坐标', width=10)
-    self.xy.bind("<Button-1>", self.__xy_change)
+    self.xy = tk.Label(self.root, text='(0, 0)', width=10)
+    # self.xy.bind("<Button-1>", self.__xy_change)
     self.xy.grid(row=0, column=2, sticky='e')
     self.log = tk.Text(self.root)
     self.log.grid(row=1, column=0, columnspan=3)
@@ -91,17 +93,13 @@ class MyApp:
     self.flush_listBox()
     pass
 
-  def __xy_change(self, event = None):
-    self.xy_status = not self.xy_status
-    if not self.xy_status:
-      self.xy.config(text='点击获取坐标')
-    else:
-      self.Log('获取坐标时，拖动窗口会出现卡顿')
-
   def flush_listBox(self):
     self.__save_path_map()
     pass 
   
+  def __get_title(self, event = None):
+    self.title_flag = not self.title_flag
+
   def __init_listbox(self):
     try:
       path = self.get_file('list_list')
