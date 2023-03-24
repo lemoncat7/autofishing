@@ -26,9 +26,11 @@ class MyApp:
   log_level = LogLevel.DEBUG
   path_map = {}
   handle = None
-  model = None
+  loop = 0
+  process = None
   xy_status = True
   title_flag = False
+  script_flag = False
   def __init__(self):
     self.root = tk.Tk()
     # 设置退出事件的回调函数
@@ -45,7 +47,8 @@ class MyApp:
     l1.grid(row=0, column=0, sticky='w')
     self.title = tk.Label(self.root, text='Moye', width=10)
     self.title.bind('<Button-1>', self.__get_title)
-    self.title.grid(row=0, column=1, sticky='e')
+    self.title.bind('<Button-3>', self.generate_script)
+    self.title.grid(row=0, column=1, sticky='')
     self.xy = tk.Label(self.root, text='(0, 0)', width=10)
     # self.xy.bind("<Button-1>", self.__xy_change)
     self.xy.grid(row=0, column=2, sticky='e')
@@ -99,6 +102,10 @@ class MyApp:
   
   def __get_title(self, event = None):
     self.title_flag = not self.title_flag
+
+  def generate_script(self, event = None):
+    if self.script_flag:
+      self.Log('准备开始记录脚本', 5)
 
   def __init_listbox(self):
     try:
@@ -220,7 +227,7 @@ class MyApp:
       conf_path = self.get_file('config.ini')
       if not os.path.exists(conf_path):
         with open(conf_path, 'w+', encoding='utf8') as f:
-          f.write('''[settings]\nlog=INFO\nprocess=\n''')
+          f.write('''[settings]\nlog=INFO\nprocess=\nloop=\n''')
       # 创建 ConfigParser 对象
       config = configparser.ConfigParser()
       # 读取配置文件
@@ -228,7 +235,7 @@ class MyApp:
       self.log_level = self.log_map[config.get('settings','log')]
       self.Log("read config log level: %s"%self.log_level.name, 5)
       self.process = config.get('settings','process')
-      # self.model = config.get('settings','model')
+      self.loop = config.get('settings','loop')
       self.Log("read config process: %s" % self.process, 5)
       # self.__save_path_map()
       self.__init()

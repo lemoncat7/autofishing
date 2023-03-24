@@ -4,7 +4,7 @@ version:
 Author: 莫邪
 Date: 2023-03-19 01:05:36
 LastEditors: 莫邪
-LastEditTime: 2023-03-22 10:40:07
+LastEditTime: 2023-03-24 17:14:41
 '''
 # -*- coding: utf-8 -*-
 from auto_app import MyApp
@@ -16,6 +16,7 @@ import traceback
 import win32
 import threading
 import pydirectinput
+import re
 import ctypes
 PROCESS_PER_MONITOR_DPI_AWARE = 2
 ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
@@ -41,6 +42,7 @@ class AutoFish(MyApp):
 
   def on_closing(self):
     self.lisenter_status = False
+    self.run_status = False
     return super().on_closing()
   
   def __interval_time(self):
@@ -96,6 +98,31 @@ keyboard, 300, w, 10
         self.listbox.insert('end', key)
     return super().flush_listBox()
   
+  def generate_script(self, event = None):
+    self.script_flag = not self.script_flag
+    if self.script_flag:
+      while not self.script_queue.empty():
+        self.script_queue.get()
+    else: 
+      key_map = {}
+      script_file = os.path.join(self.dir, 'script%d'%(self.listbox.size() + 1))
+      with open(script_file, 'w+', encoding='utf8') as f:
+        while not self.script_queue.empty():
+          list = self.script_queue.get()
+          # 按键按下 如果是长按需要记录连续次数
+          if list[0] == 'press':
+            if not list[2] in key_map:
+              key_map[list[2]] = (list[1], 1)
+            else:
+              key_map[list[2]] = (list[1], key_map[list[2]][1] + 1)
+          elif list[0] == 'release':
+            f.write('keyboard, %d, %s, %d\n'%(key_map[list[2]][0], list[2].strip('\''), key_map[list[2]][1]))
+
+          # elif list[0] == 'down':
+          # elif list[0] == 'up':
+
+    return super().generate_script(event)
+
   # 定义键盘事件回调函数
   def __on_press(self, key):
     # print('按下按键: {0}'.format(key.vk))
@@ -108,7 +135,8 @@ keyboard, 300, w, 10
     # if (key == keyboard.Key.esc):
     #   self.lisenter_status = False
     # else:
-    #   self.script_queue.put(['press', self.__interval_time(), str(key)])
+    if self.script_flag:
+      self.script_queue.put(['press', self.__interval_time(), str(key)])
     pass
 
   def __on_release(self, key):
@@ -120,10 +148,11 @@ keyboard, 300, w, 10
     #     # 如果按键不是单个字符，则将Key对象转换为对应的键码
     #     key_value = keyboard.Key[key.name]
     if (key == keyboard.Key.esc and self.run_status):
-      self.Log('等待线程停止...',5)
+      self.Log('等待线程停止...',4)
       self.run_status = False
     # else:
-    #   self.script_queue.put(['release', self.__interval_time(), str(key)])
+    if self.script_flag:
+      self.script_queue.put(['release', self.__interval_time(), str(key)])
     pass
 
   def __mouse_in_win(self,x, y):
@@ -161,12 +190,13 @@ keyboard, 300, w, 10
       self.xy_status = True
       if self.title_flag:
         self.Log('获取当前窗口 %s'%(win32.get_current_title()))
-    # if pressed:
-    #   # print('鼠标 {0} 按下在 ({1}, {2})'.format(button, x, y))
-    #   self.script_queue.put(['down', self.__interval_time(), button])
-    # else:
-    #   # print('鼠标 {0} 松开在 ({1}, {2})'.format(button, x, y))
-    #   self.script_queue.put(['up', self.__interval_time(), button])
+    if self.script_flag:
+      if pressed:
+       # print('鼠标 {0} 按下在 ({1}, {2})'.format(button, x, y))
+        self.script_queue.put(['down', self.__interval_time(), button, x, y])
+      else:
+      #   # print('鼠标 {0} 松开在 ({1}, {2})'.format(button, x, y))
+        self.script_queue.put(['up', self.__interval_time(), button, x, y])
     pass
           
   # 开始监听鼠标和键盘事件
@@ -247,18 +277,27 @@ keyboard, 300, w, 10
             if len(list) >= 4:
               times = int(list[3])
             else:
-                times = 1
+              times = 1
           # 检查字符串是否以 'Key.' 开头
+          print(list)
           self.Log('exec press key %s'%list[2],6)
-          if list[2].startswith('Key.'):
+          if re.search('Key.', list[2] ) or not re.search('[0-9]', list[2]):
             # 获取键的值
-            key = getattr(keyboard.Key, list[2].split('.')[-1])
-          elif list[2].startswith('\\x'):
+            print(list[2])
+            if not re.search('Key.', list[2]):
+              key = getattr(keyboard.Key, list[2].strip())
+              print(1, key)
+            else:
+              key = getattr(keyboard.Key, list[2].split('.')[-1])
+              print(2, key)
+            print(3, key)
+          elif list[2].strip().startswith('\\x'):
             # key = bytes.fromhex(list[2][2:])
             key = win32.CodeKey[list[2].strip()]
           else:
             # 否则，将字符串作为键名直接传递
             key = list[2].strip()
+          print(key)
           self.kb.press(key)
           if list[0] == 'keyboard' and times == 1:
             self.kb.release(key)
@@ -275,6 +314,8 @@ keyboard, 300, w, 10
           if list[2].startswith('Key.'):
             # 获取键的值
             key = getattr(keyboard.Key, list[2].split('.')[-1])
+          elif not re.search('[0-9]', list[2]):
+            key = getattr(keyboard.Key, list[2].strip())
           elif list[2].startswith('\\x'):
             # key = bytes.fromhex(list[2][2:])
             key = win32.CodeKey[list[2].strip()]
@@ -322,17 +363,21 @@ keyboard, 300, w, 10
       self.run_status = True
       self.Log('按 ESC 键可退出运行脚本')
       ok, h = win32.set_sorftware_foreground(self.process)
-      for selection in selections:
-        path = self.path_map[self.listbox.get(selection)]
-        self.Log('正在运行当前script :%s'%self.listbox.get(selection),5)
-        self.Log('run item %s, path %s' %(self.listbox.get(selection), path), 6)
-        lines = open(os.path.join(self.dir, path), 'r', encoding='utf8').readlines()
-        for line in lines:
+      for i in range(0, int(self.loop)):
+        self.Log('第 %d 次循环'%(i + 1))
+        for selection in selections:
+          path = self.path_map[self.listbox.get(selection)]
+          self.Log('正在运行当前script :%s'%self.listbox.get(selection),5)
+          self.Log('run item %s, path %s' %(self.listbox.get(selection), path), 6)
+          lines = open(os.path.join(self.dir, path), 'r', encoding='utf8').readlines()
+          for line in lines:
+            if not self.run_status:
+              break
+            self.Exec(line)
           if not self.run_status:
-            self.Log('已终止运行脚本',5)
             break
-          self.Exec(line)
         if not self.run_status:
+          self.Log('已终止运行脚本',5)
           break
       self.Log('script 运行结束',5)
     except Exception as e:
